@@ -1,0 +1,5 @@
+htseq (0.5.3p3-1) oneiric; urgency=low
+
+  * source package automatically created by stdeb 0.6.0+git
+
+ -- Diane Trout <diane@caltech.edu>  Tue, 31 Jan 2012 16:58:40 -0800
