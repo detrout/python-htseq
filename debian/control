@@ -9,4 +9,13 @@ Package: python-htseq
 Architecture: any
 Depends: ${misc:Depends}, ${python:Depends}, ${shlibs:Depends}
 Description: A framework to process and analyze data from high-throughput
+ HTSeq can be used to performing a number of common analysis tasks:
+ .
+ * Getting statistical summaries about the base-call quality scores to
+   study the data quality.
+ * Calculating a coverage vector and exporting it for visualization in
+   a genome browser.
+ * Reading in annotation data from a GFF file.
+ * Assigning aligned reads from an RNA-Seq experiments to exons and
+   genes.
 
