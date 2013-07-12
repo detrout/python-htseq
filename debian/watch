@@ -1,0 +1,4 @@
+version=3
+opts=uversionmangle=s/p/./ \
+https://pypi.python.org/packages/source/H/HTSeq/HTSeq-([0-9.p]*).tar.gz
+#https://pypi.python.org/packages/source/H/HTSeq/HTSeq-0.5.4p3.tar.gz
