@@ -8,7 +8,6 @@ import itertools
 import collections
 import cStringIO
 import warnings
-
 import numpy
 cimport numpy
 
@@ -33,7 +32,7 @@ cdef class GenomicInterval:
    are calculated from the other:
      
       chrom: The name of a sequence (i.e., chromosome, contig, or 
-         the like). If 'genome' is given, it should know 'chrom'.
+         the like). 
       start: The start of the interval. Even on the reverse strand,
          this is always the smaller of the two values 'start' and 'end'.
          Note that all positions should be given as 0-based value!
@@ -48,7 +47,7 @@ cdef class GenomicInterval:
         this is the same as 'start' except when strand == '-', in which 
         case it is end-1.
       end_d: The "directional end": Usually, the same as 'end', but for 
-        strand=='-1', it is start+1.
+        strand=='-1', it is start-1.
    """
    
    def __init__( GenomicInterval self, str chrom, long start, long end, 
@@ -132,7 +131,7 @@ cdef class GenomicInterval:
          if self._strand is not strand_minus:
             return self.end
          else:
-            return self.start + 1
+            return self.start - 1
             
    property start_as_pos:
       def __get__( GenomicInterval self ):
@@ -237,7 +236,7 @@ cdef class GenomicInterval:
          raise TypeError, "Cannot extend an interval to include None."
       if self.chrom != iv.chrom:
          raise ValueError, "Cannot extend an interval to include an interval on another chromosome."
-      if self.strand.se is not strand_nostrand and iv.strand is not strand_nostrand and \
+      if self.strand is not strand_nostrand and iv.strand is not strand_nostrand and \
             self.strand is not iv.strand:
          raise ValueError, "Cannot extend an interval to include an interval on another strand."
       self.start = min( self.start, iv.start )
@@ -345,6 +344,8 @@ cdef class ChromVector( object ):
    
    @classmethod 
    def _create_view( cls, ChromVector vec, GenomicInterval iv ):
+      if iv.length == 0:
+         raise IndexError, "Cannot subset to zero-length interval."
       v = cls()
       v.iv = iv
       v.array = vec.array
@@ -374,7 +375,7 @@ cdef class ChromVector( object ):
          if index_slice.stop is not None:
             stop = index_slice.stop
             if stop > self.iv.end:
-               raise IndexError, "stop too large"
+               raise IndexError, "stop too large"               
          else:
             stop = self.iv.end
          iv = GenomicInterval( self.iv.chrom, start, stop, self.iv.strand )
@@ -386,7 +387,7 @@ cdef class ChromVector( object ):
             raise IndexError
          if self.iv.strand is strand_nostrand and \
                index.strand is not strand_nostrand:
-            iv = iv.copy()
+            iv = index.copy()   # Is this correct now?
             iv.strand = strand_nostrand
          return ChromVector._create_view( self, iv )
       else:
@@ -417,6 +418,10 @@ cdef class ChromVector( object ):
                raise IndexError, "stop too large"
          else:
             stop = self.iv.end
+         if start > stop:
+            raise IndexError, "Start of interval is after its end."
+         if start == stop:
+            raise IndexError, "Cannot assign to zero-length interval."
          self.array[ start - self.offset : stop - self.iv.start : index.step ] = value
       elif isinstance( index, GenomicInterval ):
          if index.chrom != self.iv.chrom:
@@ -759,18 +764,23 @@ cdef class SequenceWithQualities( Sequence ):
         name      - The sequence name or ID
         qualstr   - The quality string. Must have the same length as seq
         qualscale - The encoding scale of the quality string. Must be one of
-                      "phred", "solexa", "solexa-old" )
+                      "phred", "solexa", "solexa-old", or "noquals" )
       """
-      if len( seq ) != len( qualstr ):
-         raise ValueError, "'seq' and 'qualstr' do not have the same length."
       Sequence.__init__( self, seq, name )
-      self._qualstr = qualstr
+      if qualscale != "noquals":
+         if len( seq ) != len( qualstr ):
+            raise ValueError, "'seq' and 'qualstr' do not have the same length."
+         self._qualstr = qualstr
+      else:
+         self._qualstr = b''
       self._qualscale = qualscale
       self._qualarr = None
       self._qualstr_phred = b''
 
    cdef _fill_qual_arr( SequenceWithQualities self ):
       cdef int seq_len = len( self.seq )
+      if self._qualscale == "missing":
+         raise ValueError, "Quality string missing."
       if seq_len != len( self._qualstr ):
          raise ValueError, "Quality string has not the same length as sequence."
       cdef numpy.ndarray[ numpy.int_t, ndim=1 ] qualarr = numpy.empty( ( seq_len, ), numpy.int )
@@ -822,6 +832,8 @@ cdef class SequenceWithQualities( Sequence ):
       cdef int i
       cdef numpy.ndarray[ numpy.int_t, ndim=1 ] qual_array
       if qualstr_phred_cstr[0] == 0:
+         if self._qualscale == "noquals":
+            raise ValueError, "Quality string missing" 
          if self._qualscale == "phred":
             self._qualstr_phred = self._qualstr
          else:
@@ -968,7 +980,7 @@ cdef class Alignment( object ):
    def __repr__( self ):
       cdef str s
       if self.paired_end:
-         s = "Paired-end Read"
+         s = "Paired-end read"
       else:
          s = "Read"
       if self.aligned:
@@ -1168,8 +1180,8 @@ cdef _parse_SAM_optional_field_value( str field ):
       raise ValueError, "SAM optional field with illegal type letter '%s'" % field[2]
 
 cigar_operation_codes = [ 'M', 'I', 'D', 'N', 'S', 'H', 'P', '=', 'X']
-      
-      
+cigar_operation_code_dict = dict( [ (x,i) for i,x in enumerate( cigar_operation_codes ) ] )
+
 cdef class SAM_Alignment( AlignmentWithSequenceReversal ):
 
    """When reading in a SAM file, objects of the class SAM_Alignment
@@ -1179,31 +1191,72 @@ cdef class SAM_Alignment( AlignmentWithSequenceReversal ):
     - cigar: a list of CigarOperatio objects, describing the alignment
     - tags: the extra information tags [not yet implemented]
    """
-   
+
+   def to_pysam_AlignedRead( self, sf ):
+      try:
+         import pysam
+      except ImportError:
+         sys.stderr.write( "Please Install PySam to use this functionality (http://code.google.com/p/pysam/)" )
+         raise
+      
+      a = pysam.AlignedRead()
+      a.seq = self.read.seq
+      a.qual = self.read.qualstr
+      a.qname = self.read.name
+      a.flag = self.flag
+      a.tags = self.optional_fields
+      if self.aligned:
+         a.cigar = [ (cigar_operation_code_dict[c.type], c.size) for c in self.cigar ]
+         a.pos = self.iv.start
+         a.tid = sf.gettid( self.iv.chrom )
+         a.isize = self.inferred_insert_size
+         a.mapq = self.aQual
+      else:
+         a.pos  = -1
+         a.tid  = -1
+      if self.mate_aligned:
+         a.mrnm = sf.gettid( self.mate_start.chrom )
+         a.mpos = self.mate_start.start
+      else:
+         a.mrnm = -1
+         a.mpos = -1
+      return a
+
    @classmethod
    def from_pysam_AlignedRead( cls, read, samfile ):
       strand = "-" if read.is_reverse else "+"
-      if read.tid != -1:
+      if not read.is_unmapped:
           chrom = samfile.getrname(read.tid)
           iv = GenomicInterval( chrom, read.pos, read.aend, strand )
       else:
           iv = None
-      
-      seq = SequenceWithQualities( read.seq, read.qname, read.qual )
+      if read.qual != "*":
+         seq = SequenceWithQualities( read.seq, read.qname, read.qual )
+      else:
+         seq = SequenceWithQualities( read.seq, read.qname, read.qual, "noquals" )
       a = SAM_Alignment( seq, iv )
       a.cigar = build_cigar_list( [ (cigar_operation_codes[code], length) for (code, length) in read.cigar ] , read.pos, chrom, strand ) if iv != None else []
       a.inferred_insert_size = read.isize
       a.aQual = read.mapq
+      a.flag = read.flag
       a.proper_pair = read.is_proper_pair
       a.not_primary_alignment = read.is_secondary
       a.failed_platform_qc = read.is_qcfail
       a.pcr_or_optical_duplicate = read.is_duplicate
       a.original_sam_line = ""
+      a.optional_fields = read.tags
       if read.is_paired:
          if read.is_proper_pair:
             strand = "-" if read.mate_is_reverse else "+"
             a.mate_start = GenomicPosition( samfile.getrname(read.mrnm), read.mpos, strand )
-            a.pe_which = "first" if read.is_read1 else "second" #TODO:check wheter that actually works as expected, what about 'unknown'?
+            if read.is_read1:
+               a.pe_which = intern( "first" )
+            elif read.is_read2:  
+               a.pe_which = intern( "second" )
+            else:
+               a.pe_which = intern( "unknown" )
+      else:
+         a.pe_which = intern( "not_paired_end" )
       return a
          
    @classmethod
@@ -1214,6 +1267,7 @@ cdef class SAM_Alignment( AlignmentWithSequenceReversal ):
       cdef int posint, flagint
       cdef str strand
       cdef list cigarlist
+      cdef SequenceWithQualities swq
             
       fields = line.rstrip().split( "\t" )
       if len( fields ) < 10:
@@ -1227,10 +1281,10 @@ cdef class SAM_Alignment( AlignmentWithSequenceReversal ):
       if seq.count( "." ) > 0:
          raise ValueError, "Sequence in SAM file contains '.', which is not supported."
       flagint = int( flag )
-        
+      
       if flagint & 0x0004:     # flag "query sequence is unmapped" 
          iv = None
-         cigar = None
+         cigarlist = None
          if rname != "*":     # flag "query sequence is unmapped"      
             warnings.warn( "Malformed SAM line: RNAME != '*' although flag bit &0x0004 set" )
       else:
@@ -1244,10 +1298,15 @@ cdef class SAM_Alignment( AlignmentWithSequenceReversal ):
          cigarlist = parse_cigar( cigar, posint, rname, strand )
          iv = GenomicInterval( rname, posint, cigarlist[-1].ref_iv.end, strand )   
             
-      alnmt = SAM_Alignment( SequenceWithQualities( seq.upper(), qname, qual ), iv )
-         
+      if qual != "*":
+         swq = SequenceWithQualities( seq.upper(), qname, qual )
+      else:
+         swq = SequenceWithQualities( seq.upper(), qname, "", "noquals" )
+
+      alnmt = SAM_Alignment( swq, iv )
+      alnmt.flag = flagint   
       alnmt.cigar = cigarlist
-      alnmt._optional_fields = optional_fields
+      alnmt.optional_fields = [ ( field[:2], _parse_SAM_optional_field_value( field ) ) for field in optional_fields ]
       alnmt.aQual = int( mapq )
       alnmt.inferred_insert_size = int( isize )
       alnmt.original_sam_line = line
@@ -1267,7 +1326,10 @@ cdef class SAM_Alignment( AlignmentWithSequenceReversal ):
                strand = "+"           
             alnmt.mate_start = GenomicPosition( mrnm, posint, strand )   
             if alnmt.mate_start.chrom == "=":
-               alnmt.mate_start.chrom = alnmt.iv.chrom
+               if alnmt.iv is not None:
+                  alnmt.mate_start.chrom = alnmt.iv.chrom
+               else:
+                  warnings.warn( "Malformed SAM line: MRNM == '=' although read is not aligned." )
          if flagint & 0x0040:
             alnmt.pe_which = intern( "first" )
          elif flagint & 0x0080:
@@ -1285,79 +1347,70 @@ cdef class SAM_Alignment( AlignmentWithSequenceReversal ):
 
       return alnmt
 
+   property flag:
+      def __get__( self ):
+         return self._flag
+      def __set__( self, value ):
+         self._flag = value
+   
    @property
    def paired_end( self ):
       return self.pe_which != "not_paired_end"
-
+   
    @property
    def mate_aligned( self ):
       return self.mate_start is not None
-         
+   
    def get_sam_line( self ):
-       
       cdef str cigar = ""
-      cdef int flag = 0
       cdef GenomicInterval query_start, mate_start
       cdef CigarOperation cop
-       
-      if self.pe_which != "not_paired_end":
-         self.flag |= 0x0001
-         if self.proper_pair:
-            self.flag |= 0x0002
-         if self.pe_which == "first":
-            self.flag |= 0x0040
-         elif self.pe_which == "second":
-            self.flag |= 0x0080
-         if self.pe_which != "unknown":
-            raise ValueError, "Illegal value in field 'pe_which'"
-       
+             
       if self.aligned:
          query_start = self.iv
-         if self.iv.strand == "-":
-            flag |= 0x0010
       else:
          query_start = GenomicPosition( "*", -1 )
-         flag |= 0x0004
           
       if self.mate_start is not None:
          mate_start = self.mate_start
-         if self.mate_start.strand == "-":
-            flag |= 0x0020
       else:
          mate_start = GenomicPosition( "*", -1 )
-         if self.paired_end:
-            flag |= 0x0008
-          
-      if self.proper_pair:
-         flag |= 0x0002
-      if self.not_primary_alignment:
-         flag |= 0x0100
-      if self.failed_platform_qc: 
-         flag |= 0x0200
-      if self.pcr_or_optical_duplicate:
-         flag |= 0x0400
-          
+                
       if self.cigar is not None:
          for cop in self.cigar:
             cigar += str(cop.size) + cop.type
       else:
          cigar = "*"
        
-      return '\t'.join( ( self.read.name, str(flag), query_start.chrom, 
+      return '\t'.join( ( self.read.name, str(self.flag), query_start.chrom, 
           str(query_start.start+1), str(self.aQual), cigar, mate_start.chrom, 
           str(mate_start.pos+1), str(self.inferred_insert_size), 
            self.read_as_aligned.seq, self.read_as_aligned.qualstr,
-           ' '.join( self._optional_fields ) ) )      
+           '\t'.join( self.raw_optional_fields() ) ) )      
 
    def optional_field( SAM_Alignment self, str tag ):
-      cdef str field
-      for field in self._optional_fields:
-         if field[:2] == tag:
-            return _parse_SAM_optional_field_value( field )
-      raise KeyError, "SAM optional field tag %s not found" % tag
-
-   def optional_fields( SAM_Alignment self ):
-      cdef str field
-      return dict( [ ( field[:2], _parse_SAM_optional_field_value( field ) ) 
-         for field in self._optional_fields ] )
-
+      res = [ p for p in self.optional_fields if p[0] == tag ]
+      if len(res) == 1:
+         return res[0][1]
+      else:
+         if len(res) == 0:
+            raise KeyError, "SAM optional field tag %s not found" % tag
+         else:
+            raise ValueError, "SAM optional field tag %s not unique" % tag
+   
+   def raw_optional_fields( self ):
+      res = []
+      for op in self.optional_fields:
+         if op[1].__class__ == str:
+            if len(op[1]) == 1:
+               tc = "A"
+            else:
+               tc = "Z"
+         elif op[1].__class__ == int:
+            tc = "i"
+         elif op[1].__class__ == float:
+            tc = "j"
+         else:
+            tc = "H"
+         res.append( ":".join( [ op[0], tc, str(op[1]) ] ) )
+      return res

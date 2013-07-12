@@ -62,7 +62,7 @@ As usual, there is a parser class, called **GFF_Reader**, that can generate an
 iterator of objects describing the features. These objects are of type :class`GenomicFeature`
 and each describes one line of a GFF file. See Section :ref:`tour` for an example.
 
-.. class:: GFF_Reader( filename_or_sequence, end_included=False )
+.. class:: GFF_Reader( filename_or_sequence, end_included=True )
 
    As a subclass of :class:`FileOrSequence`, GFF_Reader can be initialized either
    with a file name or with an open file or another sequence of lines.
@@ -71,7 +71,7 @@ and each describes one line of a GFF file. See Section :ref:`tour` for an exampl
    
    The GFF specification is unclear on whether the end coordinate marks the last
    base-pair of the feature (closed intervals, ``end_included=True``) or the one
-   after (half-open intervals, ``end_included=False``). The default, False, is
+   after (half-open intervals, ``end_included=False``). The default, True, is
    correct for Ensembl GTF files. If in doubt, look for a CDS or stop_codon
    feature in you GFF file. Its length should be divisible by 3. If "end-start"
    is divisible by 3, you need ``end_included=False``. If "end-start+1" is
@@ -142,11 +142,11 @@ and each describes one line of a GFF file. See Section :ref:`tour` for an exampl
 
    In order to write a GFF file from a sequence of features, this method is provided:
    
-   .. method GenomicFeature.get_gff_line( with_equal_sign=False )
+      .. method:: GenomicFeature.get_gff_line( with_equal_sign=False )
    
-      Returns a line to describe the feature in the GFF format. This works even if the optional 
-      attributes given above are missing. Call this for each of your ``GenomicFeature`` objects
-      and write the lines into a file to get a GFF file.
+         Returns a line to describe the feature in the GFF format. This works even if the optional 
+         attributes given above are missing. Call this for each of your ``GenomicFeature`` objects
+         and write the lines into a file to get a GFF file.
       
 .. function:: parse_GFF_attribute_string( attrStr, extra_return_first_value=False )      
 
@@ -248,14 +248,14 @@ Example Workflow for reading the dbSNP in VCF-format (obtained from `dbSNP <ftp:
 
 .. doctest::
 
-    >>> import HTSeq #doctest:+NORMALIZE_WHITESPACE
-    vcfr = HTSeq.VCF_Reader( "00-All.vcf.gz" )
-    vcfr.parse_meta()
-    vcfr.make_info_dict()
-    for vc in vcfr:
+    >>> vcfr = HTSeq.VCF_Reader( "00-All.vcf.gz" ) #doctest: +SKIP
+    >>> vcfr.parse_meta() #doctest: +SKIP
+    >>> vcfr.make_info_dict() #doctest: +SKIP
+    >>> for vc in vcfr: #doctest: +SKIP
     ...    print vc,
     1:10327:'T'->'C'
     1:10433:'A'->'AC'
     1:10439:'AC'->'A'
     1:10440:'C'->'A'
 
+*FIXME* The example above is not run, as the example file is still missing!

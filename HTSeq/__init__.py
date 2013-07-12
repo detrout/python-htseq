@@ -3,10 +3,16 @@
 See http://www-huber.embl.de/users/anders/HTSeq for documentation.
 """
 
-import itertools, warnings
+import itertools, warnings, os
 
-from _HTSeq import *
-
+try:
+   from _HTSeq import *
+except ImportError:
+   if os.path.isfile( "setup.py" ):
+      raise ImportError( "Cannot import 'HTSeq' when working directory is HTSeq's own build directory.")
+   else:
+      raise
+      
 from _version import __version__
 
 #from vcf_reader import *
@@ -194,7 +200,7 @@ class GFF_Reader( FileOrSequence ):
    Iterating over the object then yields GenomicFeature objects.
    """
    
-   def __init__( self, filename_or_sequence, end_included=False ):
+   def __init__( self, filename_or_sequence, end_included=True ):
       FileOrSequence.__init__( self, filename_or_sequence )
       self.end_included = end_included
       self.metadata = {}
@@ -214,9 +220,9 @@ class GFF_Reader( FileOrSequence ):
             strand, frame, attributeStr ) = line.split( "\t", 8 )   
          ( attr, name ) = parse_GFF_attribute_string( attributeStr, True )
          if self.end_included:
-            iv = GenomicInterval( seqname, int(start)-1, int(end)-1, strand )
-         else:
             iv = GenomicInterval( seqname, int(start)-1, int(end), strand )
+         else:
+            iv = GenomicInterval( seqname, int(start)-1, int(end)-1, strand )
          f = GenomicFeature( name, feature, iv )
          if score != ".":
             score = float( score )
@@ -643,21 +649,72 @@ _vcf_typemap = {
 
 class VariantCall( object ):
     
-    def __init__( self, line, nsamples = 0, sampleids=[] ):
+    def __init__( self, chrom = None, pos = None, identifier = None, ref = None, alt = None, qual = None, filtr = None, info = None ):
+        self.chrom  = chrom
+        self.pos    = pos
+        self.id     = identifier
+        self.ref    = ref
+        self.alt    = alt
+        self.qual   = qual
+        self.filter = filtr
+        self.info   = info
+    
+    @classmethod
+    def fromdict( cls, dictionary ):
+        ret = cls()
+        ret.chrom   = dictionary["chrom"]
+        ret.pos     = dictionary["pos"]
+        ret.id      = dictionary["id"]
+        ret.ref     = dictionary["ref"]
+        ret.alt     = dictionary["alt"]
+        ret.qual    = dictionary["qual"]
+        ret.filter  = dictionary["filter"]
+        ret.info    = dictionary["info"]
+    
+    @classmethod
+    def fromline( cls, line, nsamples = 0, sampleids = [] ):
+        ret = cls()
         if nsamples == 0:
-            self.format = None
-            self.chrom, self.pos, self.id, self.ref, self.alt, self.qual, self.filter, self.info = line.rstrip("\n").split("\t", 7)
+            ret.format = None
+            ret.chrom, ret.pos, ret.id, ret.ref, ret.alt, ret.qual, ret.filter, ret.info = line.rstrip("\n").split("\t", 7)
         else:
             lsplit = line.rstrip("\n").split("\t")
-            self.chrom, self.pos, self.id, self.ref, self.alt, self.qual, self.filter, self.info = lsplit[:8]
-            self.format = lsplit[8].split(":")
-            self.samples = {}
+            ret.chrom, ret.pos, ret.id, ret.ref, ret.alt, ret.qual, ret.filter, ret.info = lsplit[:8]
+            ret.format = lsplit[8].split(":")
+            ret.samples = {}
             spos=9
             for sid in sampleids:
-                self.samples[ sid ] = dict( ( name, value ) for (name, value) in itertools.izip( self.format, lsplit[spos].split(":") ) )
+                ret.samples[ sid ] = dict( ( name, value ) for (name, value) in itertools.izip( ret.format, lsplit[spos].split(":") ) )
                 spos += 1
-        self.pos = GenomicPosition( self.chrom, int(self.pos) )
-        self.alt = self.alt.split(",")
+        ret.pos = GenomicPosition( ret.chrom, int(ret.pos) )
+        ret.alt = ret.alt.split(",")
+        return ret
+    
+    def infoline( self ):
+        if self.info.__class__ == dict:
+            return ";".join(map((lambda key: str(key) + "=" + str(self.info[key])), self.info ))
+        else:
+            return self.info
+    
+    def sampleline( self ):
+       if self.format == None:
+          print >> sys.stderr, "No samples in this variant call!" 
+          return ""
+       keys = self.format
+       ret = [ ":".join( keys ) ]
+       for sid in self.samples:
+          tmp = []
+          for k in keys:
+             if k in self.samples[sid]:
+                tmp.append( self.samples[sid][k] )
+          ret.append( ":".join(tmp) )
+       return "\t".join( ret )
+    
+    def to_line( self ):
+       if self.format == None:
+          return "\t".join( map( str, [ self.pos.chrom, self.pos.pos, self.id, self.ref, ",".join( self.alt ), self.qual, self.filter, self.infoline() ] ) ) + "\n"
+       else:
+          return "\t".join( map( str, [ self.pos.chrom, self.pos.pos, self.id, self.ref, ",".join( self.alt ), self.qual, self.filter, self.infoline(), self.sampleline() ] ) ) + "\n"
     
     def __descr__( self ):
         return "<VariantCall at %s, ref '%s', alt %s >" % (str(self.pos).rstrip("/."), self.ref, str(self.alt).strip("[]"))
@@ -734,11 +791,25 @@ class VCF_Reader( FileOrSequence ):
             else:
                 break
     
+    def meta_info( self, header_filename = None ):
+       ret = []
+       if header_filename == None:
+          the_iter = FileOrSequence.__iter__( self )
+       else:
+          the_iter = open( header_filename, "r" )
+       
+       for line in the_iter:
+          if line.startswith( '#' ):
+             ret.append( line )
+          else:
+             break
+       return ret
+    
     def __iter__( self ):
         for line in FileOrSequence.__iter__( self ):
             if line == "\n" or line.startswith( '#' ):
                 continue
-            vc = VariantCall( line, self.nsamples, self.sampleids )
+            vc = VariantCall.fromline( line, self.nsamples, self.sampleids )
             yield vc
 
 class BAM_Reader( object ):
@@ -747,17 +818,42 @@ class BAM_Reader( object ):
         global pysam
         self.filename = filename
         self.sf = None  # This one is only used by __getitem__
+        self.record_no = -1
         try:
            import pysam
         except ImportError:
-           print "Please Install PySam to use the BAM_Reader Class (http://code.google.com/p/pysam/)"
+           sys.stderr.write( "Please Install PySam to use the BAM_Reader Class (http://code.google.com/p/pysam/)" )
            raise
     
     def __iter__( self ):
         sf = pysam.Samfile(self.filename, "rb")
+        self.record_no = 0
         for pa in sf:
             yield SAM_Alignment.from_pysam_AlignedRead( pa, sf )
+            self.record_no += 1
+    
+    def fetch( self, reference = None, start = None, end = None, region = None ):
+        sf = pysam.Samfile(self.filename, "rb")
+        self.record_no = 0
+        try:
+           for pa in sf.fetch( reference, start, end, region ):
+              yield SAM_Alignment.from_pysam_AlignedRead( pa, sf )
+              self.record_no += 1
+        except ValueError as e:
+           if e.message == "fetch called on bamfile without index":
+              print "Error: ", e.message
+              print "Your bam index file is missing or wrongly named, convention is that file 'x.bam' has index file 'x.bam.bai'!"
+           else:
+              raise
+        except:
+           raise
 
+    def get_line_number_string( self ):
+        if self.record_no == -1:
+            return "unopened file %s" % ( self.filename )
+        else:
+            return "record #%d in file %s" % ( self.record_no, self.filename )
+    
     def __getitem__( self, iv ):
         if not isinstance( iv, GenomicInterval ):
            raise TypeError, "Use a HTSeq.GenomicInterval to access regions within .bam-file!"        
@@ -768,4 +864,33 @@ class BAM_Reader( object ):
         for pa in self.sf.fetch( iv.chrom, iv.start+1, iv.end ):
             yield SAM_Alignment.from_pysam_AlignedRead( pa, self.sf )
     
+    def get_header_dict( self ):
+       sf = pysam.Samfile(self.filename, "rb")
+       return sf.header
+    
                
+class BAM_Writer( object ):
+   def __init__( self, filename, template = None, referencenames = None, referencelengths = None, text = None, header = None ):
+      try:
+         import pysam
+      except ImportError:
+         sys.stderr.write( "Please Install PySam to use the BAM_Writer Class (http://code.google.com/p/pysam/)" )
+         raise
+      
+      self.filename = filename
+      self.template = template
+      self.referencenames = referencenames
+      self.referencelengths = referencelengths
+      self.text = text
+      self.header = header
+      self.sf = pysam.Samfile( self.filename, mode="wb", template = self.template, referencenames = self.referencenames, referencelengths = self.referencelengths, text = self.text, header = self.header )
+      
+   @classmethod
+   def from_BAM_Reader( cls, fn, br ):
+      return BAM_Writer( filename = fn, header = br.get_header_dict() )
+   
+   def write( self, alnmt):
+      self.sf.write( alnmt.to_pysam_AlignedRead( self.sf ) )
+   
+   def close( self ):
+      self.sf.close()
