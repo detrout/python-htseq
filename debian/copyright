@@ -3,12 +3,15 @@ Upstream-Name: HTSeq
 Upstream-Contact: Simon Anders
 Source: https://pypi.python.org/pypi/HTSeq/
 License: GPL-3
+ The full text of the license is in /usr/share/common-licenses/GPL-3
 
 Files: *
 Copyright: 2010 Simon Anders
 License: GPL-3
+ The full text of the license is in /usr/share/common-licenses/GPL-3
 
 Files: debian/*
 Copyright: 2013 Diane Trout <diane@caltech.edu>
 License: GPL-3
+ The full text of the license is in /usr/share/common-licenses/GPL-3
 

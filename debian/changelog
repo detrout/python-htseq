@@ -4,6 +4,7 @@ htseq (0.5.4.3-1) UNRELEASED; urgency=low
   * Update debhelper to 9
   * New upstream release 0.5.4p3
   * Add extended package description.
+  * Add pointer to GPL-3 text in copyright.
 
  -- Diane Trout <diane@caltech.edu>  Fri, 12 Jul 2013 14:03:21 -0700
 
