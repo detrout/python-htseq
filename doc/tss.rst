@@ -54,15 +54,15 @@ to go through only the first 100 features in the GTF file)::
    ...       print feature.attr["gene_id"], feature.attr["transcript_id"], feature.iv.start_d_as_pos
    ENSG00000223972 ENST00000456328 1:11873/+
    ENSG00000223972 ENST00000450305 1:12009/+
-   ENSG00000227232 ENST00000423562 1:29369/-
-   ENSG00000227232 ENST00000438504 1:29369/-
-   ENSG00000227232 ENST00000488147 1:29569/-
-   ENSG00000227232 ENST00000430492 1:29342/-
+   ENSG00000227232 ENST00000423562 1:29368/-
+   ENSG00000227232 ENST00000438504 1:29368/-
+   ENSG00000227232 ENST00000488147 1:29568/-
+   ENSG00000227232 ENST00000430492 1:29341/-
    ENSG00000243485 ENST00000473358 1:29553/+
    ENSG00000243485 ENST00000469289 1:30266/+
    ENSG00000221311 ENST00000408384 1:30365/+
-   ENSG00000237613 ENST00000417324 1:36080/-
-   ENSG00000237613 ENST00000461467 1:36072/-
+   ENSG00000237613 ENST00000417324 1:36079/-
+   ENSG00000237613 ENST00000461467 1:36071/-
    ENSG00000233004 ENST00000421949 1:53048/+
    ENSG00000240361 ENST00000492842 1:62947/+
    ENSG00000177693 ENST00000326183 1:69054/+
@@ -210,16 +210,16 @@ Then, we can simply get a list of all reads within this interval as follows:
    >>> sortedbamfile = HTSeq.BAM_Reader( "SRR001432_head_sorted.bam" )
    >>> for almnt in sortedbamfile[ window ]:
    ...     print almnt   #doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-   <SAM_Alignment object: Paired-end Read 'SRR001432.90270 USI-EAS21_0008_3445:8:3:245:279 length=25' aligned to 1:[145437532,145437557)/->
+   <SAM_Alignment object: Read 'SRR001432.90270 USI-EAS21_0008_3445:8:3:245:279 length=25' aligned to 1:[145437532,145437557)/->
     ...
-   <SAM_Alignment object: Paired-end Read 'SRR001432.205754 USI-EAS21_0008_3445:8:5:217:355 length=25' aligned to 1:[145440975,145441000)/->
+   <SAM_Alignment object: Read 'SRR001432.205754 USI-EAS21_0008_3445:8:5:217:355 length=25' aligned to 1:[145440975,145441000)/->
       
 Let's have a closer look at the last alignment. As before, we first extent the read to fragment size::
 
    >>> fragmentsize = 200
    >>> almnt.iv.length = fragmentsize
    >>> almnt
-   <SAM_Alignment object: Paired-end Read 'SRR001432.205754 USI-EAS21_0008_3445:8:5:217:355 length=25' aligned to 1:[145440800,145441000)/->
+   <SAM_Alignment object: Read 'SRR001432.205754 USI-EAS21_0008_3445:8:5:217:355 length=25' aligned to 1:[145440800,145441000)/->
    
 The read has been aligned to the "-"
 strand, and hence, we should look at its distance to the *end* of the window
@@ -311,7 +311,7 @@ giving its midpoint, i.e., the actual TSS position, as follows::
    ...       tssarray[ window ] += p
 
    >>> len( list( tssarray.chrom_vectors["1"]["."].steps() ) )
-   30085
+   30089
 
 
 As before, ``p`` is the position of the TSS, and ``window`` is the interval 
@@ -324,13 +324,13 @@ we selected as a good example::
    ...     if almnt.read.name.startswith( "SRR001432.700 " ):
    ...         break
    >>> almnt
-   <SAM_Alignment object: Paired-end Read 'SRR001432.700 USI-EAS21_0008_3445:8:1:35:294 length=25' aligned to 1:[169677855,169677880)/->
+   <SAM_Alignment object: Read 'SRR001432.700 USI-EAS21_0008_3445:8:1:35:294 length=25' aligned to 1:[169677855,169677880)/->
 
 Again, we extent the read to fragment size::
 
    >>> almnt.iv.length = fragmentsize
    >>> almnt
-   <SAM_Alignment object: Paired-end Read 'SRR001432.700 USI-EAS21_0008_3445:8:1:35:294 length=25' aligned to 1:[169677680,169677880)/->
+   <SAM_Alignment object: Read 'SRR001432.700 USI-EAS21_0008_3445:8:1:35:294 length=25' aligned to 1:[169677680,169677880)/->
    
 To see which windows the read covers, we subset the ``tssarray`` and ask for steps
 that the fragment in ``almnt`` covers:
@@ -339,13 +339,13 @@ that the fragment in ``almnt`` covers:
    ...    print "Step", step_iv, ", contained by these windows:"
    ...    for p in step_set:
    ...        print "   Window around TSS at", p
-   Step 1:[169677680,169677838)/. , contained by these windows:
-      Window around TSS at 1:169677780/-
-      Window around TSS at 1:169679672/-
-   Step 1:[169677838,169677880)/. , contained by these windows:
-      Window around TSS at 1:169680838/-
-      Window around TSS at 1:169679672/-
-      Window around TSS at 1:169677780/-
+   Step 1:[169677680,169677837)/. , contained by these windows:
+      Window around TSS at 1:169679671/-
+      Window around TSS at 1:169677779/-
+   Step 1:[169677837,169677880)/. , contained by these windows:
+      Window around TSS at 1:169680837/-
+      Window around TSS at 1:169679671/-
+      Window around TSS at 1:169677779/-
 
 As is typical for GenomicArrayOfSets, some TSSs appear in more than one step. To make
 sure that we don't count them twice, we take the union of all the step sets (with 
@@ -357,9 +357,9 @@ the operator ``|=``, which means in-place union when used for Python sets):
    >>> for step_iv, step_set in tssarray[ almnt.iv ].steps():
    ...    s |= step_set
    >>> s  ##doctest:+NORMALIZE_WHITESPACE
-   set([<GenomicPosition object '1':169680838, strand '-'>, 
-        <GenomicPosition object '1':169677780, strand '-'>, 
-        <GenomicPosition object '1':169679672, strand '-'>])
+   set([<GenomicPosition object '1':169680837, strand '-'>, 
+        <GenomicPosition object '1':169677779, strand '-'>, 
+        <GenomicPosition object '1':169679671, strand '-'>])        
   
 For each of the values for ``p`` in ``s``, we calculate values for ``start_in_window`` 
 and ``stop_in_window``, as before, and then add ones in the ``profile`` vector

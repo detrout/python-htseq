@@ -4,6 +4,43 @@
 Version history
 ***************
 
+Version 0.5.4
+=============
+
+2013-02-20
+
+Various bug fixed, including
+
+  - GFF_Reader interpreted the constructor's "end_included" flag
+    in the wrong way, hence the end position of intervals of
+    GFF features was off by 1 base pair before
+    
+  - htseq-count no longer warns about missing chromosomes, as this
+    warning was often misleading. Also, these reads are no properly
+    included in the "no_feature" count.
+    
+  - default for "max_qual" in "htseq-qa" is now 41, to accommodate newer
+    Illumina FASTQ files
+    
+  - BAM_Reader used to incorrectly label single-end reads as paired-end
+
+
+Patch versions:
+
+* v0.5.4p1 (2013-02-22):
+
+  - changed default for GFF_Reader to end_included=True, which is actually the
+    correct style for Ensemble GTF files. Now the behavious should be as it 
+    was before.
+
+* v0.5.4p2 (2013-04-18):
+
+  - fixed issue blocking proper built on Windows
+
+* v0.5.4p3 (2013-04-29):
+
+  - htseq-count now correctly skips over "M0" cigar operations
+
 Version 0.5.3
 =============
 
@@ -27,6 +64,21 @@ Patch versions:
 
   - p2 was built improperly
 
+* v0.5.3p5 (2012-05-29)
+
+  - added 'to_line' function to VariantCall objects and 'meta_info' function to VCF_Reader objects to print VCF-lines / -headers respectively
+
+* v0.5.3p5b (2012-06-01)
+  - added 'flag' field to SAM_Alignment objects and fixed 'get_sam_line' function of those
+
+* v0.5.3p6 (2012-06-11)
+  - fixed mix-up between patches p3, p4 and p5
+
+* v0.5.3p7 (2012-06-13)
+  - switched global pysam import to on-demand version
+
+* v0.5.3p9ur1 (2012-08-31)
+  - corrected get_sam_line: tab isntead of space between optional fields
 
 Version 0.5.2
 =============

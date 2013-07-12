@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: HTSeq
-Version: 0.5.3p3
+Version: 0.5.4p3
 Summary: A framework to process and analyze data from high-throughput sequencing (HTS) assays
 Home-page: http://www-huber.embl.de/users/anders/HTSeq/
 Author: Simon Anders

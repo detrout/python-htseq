@@ -180,7 +180,33 @@ at all, and a field called :attr:`iv <Alignment.iv>`
 (for "interval") that shows where the read was aligned to. We use this information in
 the next section.
 
+Reading and writing BAM files
+=============================
 
+HTSeq exposes the samtools API trough pysam, enabling you to read and write BAM files.
+A simple example of the usage is given here:
+
+.. doctest::
+   
+   >>> bam_reader = HTSeq.BAM_Reader( "SRR001432_head_sorted.bam" )
+   >>> for a in itertools.islice( bam_reader, 5 ):  # printing first 5 reads
+   ...    print a
+   <SAM_Alignment object: Read 'SRR001432.165255 USI-EAS21_0008_3445:8:4:718:439 length=25' aligned to 1:[29267,29292)/->
+   <SAM_Alignment object: Read 'SRR001432.238475 USI-EAS21_0008_3445:8:6:888:446 length=25' aligned to 1:[62943,62968)/->
+   <SAM_Alignment object: Read 'SRR001432.116075 USI-EAS21_0008_3445:8:3:657:64 length=25' aligned to 1:[86980,87005)/->
+   <SAM_Alignment object: Read 'SRR001432.159692 USI-EAS21_0008_3445:8:4:618:821 length=25' aligned to 1:[91360,91385)/->
+   <SAM_Alignment object: Read 'SRR001432.249247 USI-EAS21_0008_3445:8:6:144:741 length=25' aligned to 1:[97059,97084)/->
+    
+[*FIXME*] The following is currently broken, likely due to a bug in pysam.    
+
+.. doctest::
+    
+   >>> bam_writer = HTSeq.BAM_Writer.from_BAM_Reader( "region.bam", bam_reader ) #set-up BAM_Writer with same header as reader #doctest: +SKIP
+   >>> for a in bam_reader.fetch( region = "1:249000000-249200000" ): #fetching reads in a region #doctest: +SKIP
+   ...    print "Writing Alignment", a, "to file", bam_writer.filename 
+   ...	  bam_writer.write( a ) 
+   >>> bam_writer.close() #doctest: +SKIP
+ 
 Genomic intervals and genomic arrays
 ====================================
 
@@ -380,7 +406,21 @@ These file are in the `GTF format`_, a tightening of the `GFF format`_. HTSeq of
 .. _`GTF format`: http://mblab.wustl.edu/GTF22.html
 .. _`GFF format`: http://www.sanger.ac.uk/resources/software/gff/spec.html
 
-   >>> gtf_file = HTSeq.GFF_Reader( "Saccharomyces_cerevisiae.SGD1.01.56.gtf.gz" )
+   >>> gtf_file = HTSeq.GFF_Reader( "Saccharomyces_cerevisiae.SGD1.01.56.gtf.gz",
+   ...    end_included=True )
+
+The GFF format is, unfortunately, a not very well specified file format. Several
+standard documents exist, from different groups, and they even contradict each 
+other in some points. Most importantly, it is unclear whether a range specified
+in a GFF line is supposed to include the base under the "end" position or not. Here,
+we specied the this file does include the end. Actually, this is the default
+for GFF_Reader, so it would not have been necessary to specify it. 
+(Hint, if you are unsure about your GFF file: The length of most coding exons
+is divisible by 3. If start-end is divisible by 3, too, end is
+not included, if the division leaves a remainder of two, end is included.)
+
+We iterate through this file as follows:
+
    >>> for feature in itertools.islice( gtf_file, 10 ):
    ...    print feature
    ... 
@@ -388,15 +428,24 @@ These file are in the `GTF format`_, a tightening of the `GFF format`_. HTSeq of
    <GenomicFeature: CDS 'R0010W' at 2-micron: 251 -> 1520 (strand '+')>
    <GenomicFeature: start_codon 'R0010W' at 2-micron: 251 -> 254 (strand '+')>
    <GenomicFeature: stop_codon 'R0010W' at 2-micron: 1520 -> 1523 (strand '+')>
-   <GenomicFeature: exon 'R0020C' at 2-micron: 3007 -> 1887 (strand '-')>
-   <GenomicFeature: CDS 'R0020C' at 2-micron: 3007 -> 1890 (strand '-')>
-   <GenomicFeature: start_codon 'R0020C' at 2-micron: 3007 -> 3006 (strand '-')>
-   <GenomicFeature: stop_codon 'R0020C' at 2-micron: 1888 -> 1887 (strand '-')>
+   <GenomicFeature: exon 'R0020C' at 2-micron: 3007 -> 1885 (strand '-')>
+   <GenomicFeature: CDS 'R0020C' at 2-micron: 3007 -> 1888 (strand '-')>
+   <GenomicFeature: start_codon 'R0020C' at 2-micron: 3007 -> 3004 (strand '-')>
+   <GenomicFeature: stop_codon 'R0020C' at 2-micron: 1888 -> 1885 (strand '-')>
    <GenomicFeature: exon 'R0030W' at 2-micron: 3270 -> 3816 (strand '+')>
    <GenomicFeature: CDS 'R0030W' at 2-micron: 3270 -> 3813 (strand '+')>
 
 The ``feature`` variable is filled with objects of class :class:`GenomicFeature`. 
-As with all Python objects, the **dir** function shows us its slots and functions:
+If you compare the coordinated with the original file, you will notice that the
+GFF_Reader has subtracted one from all starts. This is because all file parsers in
+HTSeq adjust coordinates as necessary to fit the Python convention, which is that
+indexing starts with zero and the end is not included. Hence, you can immediately
+compare coordinates from different data formats without having to worry about 
+subtleties like the fact that GFF is one-based and SAM is zero-based.
+
+As with all Python objects, the **dir** function shows us the slots and 
+functions of our loop variable **feature** and so allow us to inspect what data
+it provides:
 
 .. doctest::
 
@@ -445,13 +494,13 @@ Now, we can ask what exons occur in a certain interval::
    >>> iv = HTSeq.GenomicInterval( "II", 120000, 125000, "." )
    >>> list( exons[iv].steps() ) #doctest:+NORMALIZE_WHITESPACE
    [(<GenomicInterval object 'II', [120000,121877), strand '.'>, 
-         <GenomicFeature: exon 'YBL052C' at II: 121876 -> 119382 (strand '-')>),
+        <GenomicFeature: exon 'YBL052C' at II: 121876 -> 119380 (strand '-')>), 
     (<GenomicInterval object 'II', [121877,122755), strand '.'>, 
-         None),
-    (<GenomicInterval object 'II', [122755,124762), strand '.'>,
-         <GenomicFeature: exon 'YBL051C' at II: 124761 -> 122756 (strand '-')>),
+        None), 
+    (<GenomicInterval object 'II', [122755,124762), strand '.'>, 
+        <GenomicFeature: exon 'YBL051C' at II: 124761 -> 122754 (strand '-')>), 
     (<GenomicInterval object 'II', [124762,125000), strand '.'>, 
-         None)]
+        None)]    
 
 However, our RNA-Seq experiment was not strand-specific, i.e., we do not know whether
 the reads came from the plus or the minus strand. This is why we defined the GenomicArray
@@ -583,10 +632,12 @@ If our variant calls are in a `VCF`_-file we can use the :class:`VCF_Reader` to 
 
     .. _`VCF`: http://www.1000genomes.org/wiki/Analysis/Variant%20Call%20Format/vcf-variant-call-format-version-40
  
-    >>> vcfr = HTSeq.VCF_Reader( "00-All.vcf.gz" )
-    >>> vcfr.parse_meta()
-    >>> vcfr.make_info_dict()
-    >>> for vc in vcfr:
+*FIXME*: We need to include this example file!
+ 
+    >>> vcfr = HTSeq.VCF_Reader( "00-All.vcf.gz" ) #doctest: +SKIP
+    >>> vcfr.parse_meta() #doctest: +SKIP
+    >>> vcfr.make_info_dict() #doctest: +SKIP
+    >>> for vc in vcfr: #doctest: +SKIP
     ...     print list( exons[vc.pos] )
 
 
