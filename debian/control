@@ -2,21 +2,59 @@ Source: htseq
 Maintainer: Diane Trout <diane@caltech.edu>
 Section: python
 Priority: optional
-X-Python-Versions: >= 2.5
-Build-Depends: python-setuptools (>= 0.6b3), python-all-dev (>= 2.6.5), debhelper (>= 9), python-numpy (>= 1:1.3.0)
+Homepage: http://www-huber.embl.de/users/anders/HTSeq/doc/overview.html
+X-Python-Version: >= 2.5
+X-Python3-Version: >= 3.2
+Build-Depends: python-setuptools (>= 0.6b3), python-all-dev (>= 2.6.5), python-sphinx,
+ debhelper (>= 9), python-numpy (>= 1:1.3.0)
 Standards-Version: 3.9.4
 
 Package: python-htseq
 Architecture: any
 Depends: ${misc:Depends}, ${python:Depends}, ${shlibs:Depends}
-Description: A framework to process and analyze data from high-throughput
+Description: python2 module for high-throughput genome sequencing analysis
  HTSeq can be used to performing a number of common analysis tasks:
  .
- * Getting statistical summaries about the base-call quality scores to
-   study the data quality.
- * Calculating a coverage vector and exporting it for visualization in
-   a genome browser.
- * Reading in annotation data from a GFF file.
- * Assigning aligned reads from an RNA-Seq experiments to exons and
-   genes.
+   * Getting statistical summaries about the base-call quality scores to
+     study the data quality.
+   * Calculating a coverage vector and exporting it for visualization in
+     a genome browser.
+   * Reading in annotation data from a GFF file.
+   * Assigning aligned reads from an RNA-Seq experiments to exons and
+     genes.
+ .
+ This is the python 2.x version
+
+Package: python3-htseq
+Architecture: any
+Depends: ${misc:Depends}, ${python3:Depends}, ${shlibs:Depends}
+Description: python3 module for high-throughput genome sequencing analysis
+ HTSeq can be used to performing a number of common analysis tasks:
+ .
+   * Getting statistical summaries about the base-call quality scores to
+     study the data quality.
+   * Calculating a coverage vector and exporting it for visualization in
+     a genome browser.
+   * Reading in annotation data from a GFF file.
+   * Assigning aligned reads from an RNA-Seq experiments to exons and
+     genes.
+ .
+ This is the python 3.x version
+
+Package: python-htseq-doc
+Architecture: all
+Section: doc
+Depends: ${sphinxdoc:Depends}, ${misc:Depends}
+Description: documetation for HTSeq (high-throughput genome sequencing)
+ HTSeq can be used to performing a number of common analysis tasks:
+ .
+   * Getting statistical summaries about the base-call quality scores to
+     study the data quality.
+   * Calculating a coverage vector and exporting it for visualization in
+     a genome browser.
+   * Reading in annotation data from a GFF file.
+   * Assigning aligned reads from an RNA-Seq experiments to exons and
+     genes.
+ .
+ This package contains documentation in HTML form.
 
