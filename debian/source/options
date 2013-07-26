@@ -1,0 +1,4 @@
+extend-diff-ignore=HTSeq\.egg-info/.*
+extend-diff-ignore=HTSeq/StepVector\.py
+extend-diff-ignore=src/StepVector_wrap\.cxx
+extend-diff-ignore=src/_HTSeq\.c
