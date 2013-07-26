@@ -1,0 +1,10 @@
+Document: python-htseq
+Title: HTSeq: Analyzing high-throughput sequencing data with Python
+Author: Simon Anders
+Abstract: HTSeq is a Python package that provides infrastructure
+ to process data from high-throughput sequencing assays.
+Section: Science/Biology
+
+Format: HTML
+Index: /usr/share/doc/python-htseq-doc/html/index.html
+Files: /usr/share/doc/python-htseq-doc/html/*.html
