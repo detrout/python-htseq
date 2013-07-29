@@ -1,1 +1,3 @@
 usr/lib/python2*
+usr/bin/htseq-count
+usr/bin/htseq-qa

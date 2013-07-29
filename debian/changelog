@@ -9,6 +9,7 @@ htseq (0.5.4.3-1) UNRELEASED; urgency=low
   * Build and register with doc-base, python-htseq-doc
   * Add Build-Dependency on swig and cython
   * Add fix_version.patch to improve setup.py version check
+  * Install provided scripts.
 
  -- Diane Trout <diane@ghic.org>  Fri, 12 Jul 2013 14:03:21 -0700
 
