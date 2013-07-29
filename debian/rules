@@ -23,7 +23,8 @@ override_dh_installchangelogs:
 	dh_installchangelogs -k doc/history.rst
 
 override_dh_installdocs:
-	python setup.py build_sphinx
+	python setup.py build_sphinx -b html
+	python setup.py build_sphinx -b man
 	dh_installdocs
 
 clean:

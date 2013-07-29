@@ -1,0 +1,22 @@
+Author: Diane Trout <diane@ghic.org>
+Description: Add configuration necessary to have sphinx build
+ man pages from the provided reStructured text documentation.
+
+--- a/doc/conf.py
++++ b/doc/conf.py
+@@ -189,7 +189,14 @@
+ # If false, no module index is generated.
+ #latex_use_modindex = True
+ 
+-
++man_pages = [
++    ('qa', 'htseq-qa',
++     'Perform simple quality assesment of high-throughput sequencing reads',
++     'Simon Anders', '1'),
++    ('count', 'htseq-count',
++     'Count the number of reads in a SAM alignment file that map to GFF features',
++     'Simon Anders', '1'),
++]
+ 
+ html_theme_options = {
+     "sidebarbgcolor": "#006666",
