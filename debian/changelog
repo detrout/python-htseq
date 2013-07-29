@@ -8,11 +8,12 @@ htseq (0.5.4.3-1) UNRELEASED; urgency=low
   * Add debian X-Python-Versions
   * Build and register with doc-base, python-htseq-doc
   * Add Build-Dependency on swig and cython
+  * Add fix_version.patch to improve setup.py version check
 
- -- Diane Trout <diane@caltech.edu>  Fri, 12 Jul 2013 14:03:21 -0700
+ -- Diane Trout <diane@ghic.org>  Fri, 12 Jul 2013 14:03:21 -0700
 
 htseq (0.5.3p3-1) oneiric; urgency=low
 
   * Intial Packaging.
 
- -- Diane Trout <diane@caltech.edu>  Tue, 31 Jan 2012 16:58:40 -0800
+ -- Diane Trout <diane@ghic.org>  Tue, 31 Jan 2012 16:58:40 -0800
