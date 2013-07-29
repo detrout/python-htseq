@@ -29,7 +29,6 @@ override_dh_installdocs:
 clean:
 	make -C src clean
 	rm -rf dist build MANIFEST
-	rm -rf *.egg-info
 	dh_clean
 
 .PHONY: clean

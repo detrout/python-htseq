@@ -1,0 +1,4 @@
+HTSeq.egg-info/*
+HTSeq/StepVector.py
+src/StepVector_wrap.cxx
+src/_HTSeq.c
